@@ -1,0 +1,6 @@
+python render_qualcomm.py --input converted/Tile_+1984_+2688_L2.obj   --output_dir renders --num_views 9 --image_size 1024 --meshlab_lighting --elev_deg 38 --zoom 1.1
+
+python main_infer.py --images_dir renders   --model_path ./FastSAM/weights/FastSAM.pt   --output_dir outputs   --device cpu
+
+python3 main_fuse.py   --obj converted/Tile_+1984_+2688_L2.obj   --renders_dir renders   --masks_dir masks   --image_size 1024   --out_labels face_labels.npy   --out_colored_obj colored.obj --debug_dir debug_bp
+
