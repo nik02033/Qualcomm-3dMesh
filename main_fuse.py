@@ -414,13 +414,13 @@ def colorize_mesh_by_labels(verts: np.ndarray,
         num_classes = int(labels.max()) + 1 if labels.size > 0 else 1
 
     base_palette = np.array([
+        [0.60, 0.60, 0.60],
         [0.90, 0.10, 0.10],
         [0.10, 0.90, 0.10],
         [0.10, 0.10, 0.90],
         [0.90, 0.90, 0.10],
         [0.90, 0.10, 0.90],
         [0.10, 0.90, 0.90],
-        [0.60, 0.60, 0.60],
         [0.90, 0.50, 0.10],
     ], dtype=np.float32)
     repeat = (num_classes + len(base_palette) - 1) // len(base_palette)
