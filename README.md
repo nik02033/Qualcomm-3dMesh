@@ -5,6 +5,14 @@
 wget -O grounded-sam.tar https://arizonastateu-my.sharepoint.com/personal/sanaik3_sundevils_asu_edu/_layouts/15/download.aspx?share=ETac6mlFd9xIuz1j6sSRBqEBwgvUrO1eg9v8esHd45gbKA
 ```
 
+# Download weights for GroundingDINO, SAM, and RAM++:
+
+```bash
+wget https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth
+wget https://github.com/IDEA-Research/GroundingDINO/releases/download/v0.1.0-alpha/groundingdino_swint_ogc.pth
+wget https://huggingface.co/xinyu1205/recognize-anything-plus-model/resolve/main/ram_plus_swin_large_14m.pth
+```
+
 # Run commands to generate renderings, inference using FastSAM and backprojecting onto the mesh. Sample usage for Tile_+1984_+2688_L2.obj:
 
 ```bash
