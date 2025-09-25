@@ -1,1 +1,0 @@
-# Qualcomm-3dMesh

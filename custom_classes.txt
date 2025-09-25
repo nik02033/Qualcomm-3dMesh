@@ -1,0 +1,12 @@
+building
+car
+tree
+sidewalk
+bus
+bicycle
+water
+chimney
+street
+
+
+
