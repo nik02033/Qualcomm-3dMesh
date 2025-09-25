@@ -1,2 +1,12 @@
 GroundingDINO/weights/
 FastSAM/weights/
+GroundingDINO/weights/
+FastSAM/weights/
+masks/
+mask_debug/
+dino_dets/
+converted/
+*.npy
+*.npz
+*.pt
+*.pth
