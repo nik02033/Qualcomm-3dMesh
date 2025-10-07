@@ -16,7 +16,7 @@ wget https://huggingface.co/xinyu1205/recognize-anything-plus-model/resolve/main
 # Run commands to generate renderings, inference using FastSAM and backprojecting onto the mesh. Sample usage for Tile_+1984_+2688_L2.obj:
 
 ```bash
-python render_qualcomm.py --input converted/Tile_+1984_+2688_L2.obj   --output_dir renders --num_views 9 --image_size 1024 --meshlab_lighting --elev_deg 38 --zoom 1.1
+python render_qualcomm.py --input converted/Tile_+1984_+2688_L2.obj   --output_dir renders --num_views 4 --image_size 1024 --meshlab_lighting --elev_deg 20 --zoom 0.6
 
 python main_infer.py 
 

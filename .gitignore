@@ -1,0 +1,7 @@
+*.pth
+masks/
+renders/
+*.npy
+*.obj
+__pycache__/
+debug_bp/

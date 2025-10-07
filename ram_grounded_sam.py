@@ -29,6 +29,8 @@ from ram.models import ram_plus
 from ram import inference_ram
 import torchvision.transforms as TS
 
+import pdb
+
 # ChatGPT or nltk is required when using tags_chineses
 # import openai
 # import nltk
@@ -57,21 +59,21 @@ def check_tags_chinese(tags_chinese, pred_phrases, max_tokens=100, model="gpt-3.
     object_num = ', '.join(object_num)
     print(f"Correct object number: {object_num}")
 
-    if openai_key:
-        prompt = [
-            {
-                'role': 'system',
-                'content': 'Revise the number in the tags_chinese if it is wrong. ' + \
-                           f'tags_chinese: {tags_chinese}. ' + \
-                           f'True object number: {object_num}. ' + \
-                           'Only give the revised tags_chinese: '
-            }
-        ]
-        response = litellm.completion(model=model, messages=prompt, temperature=0.6, max_tokens=max_tokens)
-        reply = response['choices'][0]['message']['content']
-        # sometimes return with "tags_chinese: xxx, xxx, xxx"
-        tags_chinese = reply.split(':')[-1].strip()
-    return tags_chinese
+    # if openai_key:
+    #     prompt = [
+    #         {
+    #             'role': 'system',
+    #             'content': 'Revise the number in the tags_chinese if it is wrong. ' + \
+    #                        f'tags_chinese: {tags_chinese}. ' + \
+    #                        f'True object number: {object_num}. ' + \
+    #                        'Only give the revised tags_chinese: '
+    #         }
+    #     ]
+    #     response = litellm.completion(model=model, messages=prompt, temperature=0.6, max_tokens=max_tokens)
+    #     reply = response['choices'][0]['message']['content']
+    #     # sometimes return with "tags_chinese: xxx, xxx, xxx"
+    #     tags_chinese = reply.split(':')[-1].strip()
+    # return tags_chinese
 
 
 def load_model(model_config_path, model_checkpoint_path, device):
@@ -306,6 +308,13 @@ def infer(output_dir, image_path, img_name, box_threshold=0.05, text_threshold=0
     print(f"Before NMS: {boxes_filt.shape[0]} boxes")
     nms_idx = torchvision.ops.nms(boxes_filt, scores, iou_threshold).numpy().tolist()
     boxes_filt = boxes_filt[nms_idx]
+    
+    areas = np.abs(boxes_filt[:, 2] - boxes_filt[:, 0]) * np.abs(boxes_filt[:, 3] - boxes_filt[:, 1])
+    mask = areas <= 0.4 * (1024)**2
+    print("Boxes shape before", boxes_filt.shape)
+    boxes_filt = boxes_filt[mask]
+    print("Boxes shape after", boxes_filt.shape)
+    
     pred_phrases = [pred_phrases[idx] for idx in nms_idx]
     print(f"After NMS: {boxes_filt.shape[0]} boxes")
     # tags_chinese = check_tags_chinese(tags_chinese, pred_phrases)
@@ -333,10 +342,8 @@ def infer(output_dir, image_path, img_name, box_threshold=0.05, text_threshold=0
     
     for mask in masks:
         show_mask(mask.cpu().numpy(), plt.gca(), random_color=True)
-        break
     for box, label in zip(boxes_filt, pred_phrases):
         show_box(box.numpy(), plt.gca(), label)
-        break
 
     os.makedirs(f"{output_dir}/{img_name}", exist_ok=True)
 
@@ -348,3 +355,5 @@ def infer(output_dir, image_path, img_name, box_threshold=0.05, text_threshold=0
     )
 
     save_mask_data(f"{output_dir}/{img_name}", tags_chinese, masks, boxes_filt, pred_phrases)
+    
+    # pdb.set_trace()

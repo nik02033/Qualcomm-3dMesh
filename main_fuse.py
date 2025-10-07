@@ -36,6 +36,7 @@ import imageio.v2 as imageio
 from tqdm import tqdm
 import open3d as o3d
 
+import pdb
 
 # ---------- Utilities ----------
 
@@ -414,14 +415,14 @@ def colorize_mesh_by_labels(verts: np.ndarray,
         num_classes = int(labels.max()) + 1 if labels.size > 0 else 1
 
     base_palette = np.array([
-        [0.60, 0.60, 0.60],
-        [0.90, 0.10, 0.10],
-        [0.10, 0.90, 0.10],
-        [0.10, 0.10, 0.90],
-        [0.90, 0.90, 0.10],
-        [0.90, 0.10, 0.90],
-        [0.10, 0.90, 0.90],
-        [0.90, 0.50, 0.10],
+        [0.60, 0.60, 0.60], # gray
+        [0.90, 0.10, 0.10], # red
+        [0.10, 0.90, 0.10], # green
+        [0.10, 0.10, 0.90], # blue
+        [0.90, 0.90, 0.10], # yellow
+        [0.90, 0.10, 0.90], # purple
+        [0.10, 0.90, 0.90], # cyan
+        [0.90, 0.50, 0.10], 
     ], dtype=np.float32)
     repeat = (num_classes + len(base_palette) - 1) // len(base_palette)
     palette = np.vstack([base_palette] * repeat)[:num_classes]
@@ -511,9 +512,40 @@ def main():
     cameras = build_cameras_from_json(cam_params, image_size_for_fov)
 
     global_votes = None  # will be stacked [total_masks, F]
+    mask_view_dirs = sorted([os.path.join(args.masks_dir, d)
+                            for d in os.listdir(args.masks_dir)
+                            if d.startswith("view_") and os.path.isdir(os.path.join(args.masks_dir, d))])
+
+    # --- Build global label map across all views ---
+    all_labels = set()
+    for d in mask_view_dirs:
+        json_path = os.path.join(d, "label.json")
+        if not os.path.isfile(json_path):
+            continue
+        with open(json_path, "r") as f:
+            mask_meta = json.load(f)["mask"]
+            for entry in mask_meta:
+                all_labels.add(entry["label"])
+
+    label_to_class_id = {lbl: i for i, lbl in enumerate(sorted(all_labels))}
+    num_classes = len(label_to_class_id)
+    print(f"[INFO] Found {num_classes} global classes: {label_to_class_id}")
+
+    global_votes = np.zeros((num_classes, F), dtype=np.int64)
+
 
     # Per-view backprojection
     for mask_file in tqdm(mask_files, desc="[INFO] Backprojecting"):
+       # Parse view index (e.g., view_00 -> 0)
+        view_name = os.path.basename(mask_file).split(".")[0]
+        view_idx = view_name.split("_")[-1]
+
+        # Load per-view mask metadata
+        json_path = os.path.join(args.masks_dir, "view_" + view_idx, "label.json")
+        with open(json_path, "r") as f:
+            mask_meta = json.load(f)["mask"]
+        mask_value_to_label = {m["value"]: m["label"] for m in mask_meta}
+       
         view_idx = find_view_index_from_any(mask_file)
         if view_idx >= len(cameras):
             raise IndexError(f"view_{view_idx:02d} not in camera list (len={len(cameras)})")
@@ -566,6 +598,8 @@ def main():
             masks_np = masks_np.astype(np.uint8)
         if masks_np.ndim != 3:
             raise ValueError(f"{mask_file} must be (M,H,W), got {masks_np.shape}")
+        
+        masks_np = np.vstack([np.zeros((1, 1024, 1024), dtype=masks_np.dtype), masks_np])
 
         M, Hm, Wm = masks_np.shape
         if (Hm, Wm) != (H_rgb, W_rgb):
@@ -587,8 +621,15 @@ def main():
                 continue
             f_sel = f_img[sel]
             votes[m] += np.bincount(f_sel, minlength=F)
+            
+            cls_label = mask_value_to_label.get(m, None)
+            if cls_label is None or cls_label not in label_to_class_id:
+                continue
+            cls_id = label_to_class_id[cls_label]
+            global_votes[cls_id] += np.bincount(f_sel, minlength=F)
 
-        global_votes = votes if global_votes is None else np.vstack([global_votes, votes])
+            
+        # global_votes = votes if global_votes is None else np.vstack([global_votes, votes])
 
     # Final per-face label
     if global_votes is None or global_votes.size == 0:
@@ -603,7 +644,7 @@ def main():
         verts_rgb = colorize_mesh_by_labels(verts, faces, per_face_label,
                                             num_classes=int(global_votes.shape[0]))
         save_colored_obj_compat(verts, faces, verts_rgb, args.out_colored_obj)
-
+    # pdb.set_trace()
 
 if __name__ == "__main__":
     main()
