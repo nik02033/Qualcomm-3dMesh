@@ -415,14 +415,26 @@ def colorize_mesh_by_labels(verts: np.ndarray,
         num_classes = int(labels.max()) + 1 if labels.size > 0 else 1
 
     base_palette = np.array([
-        [0.60, 0.60, 0.60], # gray
-        [0.90, 0.10, 0.10], # red
-        [0.10, 0.90, 0.10], # green
-        [0.10, 0.10, 0.90], # blue
-        [0.90, 0.90, 0.10], # yellow
-        [0.90, 0.10, 0.90], # purple
-        [0.10, 0.90, 0.90], # cyan
-        [0.90, 0.50, 0.10], 
+        [0.60, 0.60, 0.60],  # gray
+        [0.90, 0.10, 0.10],  # red
+        [0.10, 0.90, 0.10],  # green
+        [0.10, 0.10, 0.90],  # blue
+        [0.95, 0.85, 0.10],  # yellow
+        [0.90, 0.10, 0.90],  # magenta
+        [0.10, 0.90, 0.90],  # cyan
+        [0.90, 0.50, 0.10],  # orange
+        [0.50, 0.10, 0.90],  # violet
+        [0.10, 0.45, 0.10],  # forest green
+        [0.10, 0.70, 0.70],  # teal
+        [0.80, 0.40, 0.80],  # light purple
+        [0.70, 0.70, 0.20],  # olive
+        [0.95, 0.60, 0.10],  # amber
+        [0.20, 0.20, 0.20],  # dark gray
+        [0.10, 0.40, 0.90],  # sky blue
+        [0.90, 0.30, 0.30],  # coral red
+        [0.10, 0.50, 0.30],  # sea green
+        [0.50, 0.70, 0.10],  # lime green
+        [0.70, 0.30, 0.10],  # brownish red
     ], dtype=np.float32)
     repeat = (num_classes + len(base_palette) - 1) // len(base_palette)
     palette = np.vstack([base_palette] * repeat)[:num_classes]
@@ -588,7 +600,7 @@ def main():
         overlay_path = os.path.join(args.debug_dir, f"view_{view_idx:02d}_overlay.png")
         imageio.imwrite(overlay_path, overlay)
 
-        print(f"[DEBUG] view_{view_idx:02d}: sil_area={sil_area}, "
+        tqdm.write(f"[DEBUG] view_{view_idx:02d}: sil_area={sil_area}, "
               f"z_min={z_min:.6f}, z_max={z_max:.6f}, "
               f"rgb_size={W_rgb}x{H_rgb}, cam_sign={cam_sign:+.0f}")
 
@@ -616,7 +628,7 @@ def main():
             mask = masks_np[m] > 0
             sel = valid & mask
             if not np.any(sel):
-                print(f"[DEBUG] Mask {m} in view_{view_idx:02d} covers {int(mask.sum())} px, "
+                tqdm.write(f"[DEBUG] Mask {m} in view_{view_idx:02d} covers {int(mask.sum())} px, "
                       f"but maps to 0 faces.")
                 continue
             f_sel = f_img[sel]
@@ -637,7 +649,7 @@ def main():
 
     per_face_label = np.argmax(global_votes, axis=0).astype(np.int32)  # [F]
     np.save(args.out_labels, per_face_label)
-    print(f"[INFO] Saved per-face labels: {args.out_labels}")
+    tqdm.write(f"[INFO] Saved per-face labels: {args.out_labels}")
 
     # Optional colored mesh
     if args.out_colored_obj:

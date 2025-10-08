@@ -94,7 +94,7 @@ def main():
     renderer = o3d.visualization.rendering.OffscreenRenderer(W, H)
     scene = renderer.scene
     if hasattr(scene, "set_background"):
-        scene.set_background([0.5, 0.8, 0.9, 1])
+        scene.set_background([0.2, 0.6, 1, 1])
 
     # Load model (textures if available)
     used_model = False

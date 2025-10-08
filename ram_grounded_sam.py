@@ -50,32 +50,6 @@ def load_image(image_path):
     return image_pil, image
 
 
-def check_tags_chinese(tags_chinese, pred_phrases, max_tokens=100, model="gpt-3.5-turbo"):
-    # object_list = [obj.split('(')[0] for obj in pred_phrases]
-    object_list = [obj.rsplit('(', 1)[0].strip() for obj in pred_phrases]
-    object_num = []
-    for obj in set(object_list):
-        object_num.append(f'{object_list.count(obj)} {obj}')
-    object_num = ', '.join(object_num)
-    print(f"Correct object number: {object_num}")
-
-    # if openai_key:
-    #     prompt = [
-    #         {
-    #             'role': 'system',
-    #             'content': 'Revise the number in the tags_chinese if it is wrong. ' + \
-    #                        f'tags_chinese: {tags_chinese}. ' + \
-    #                        f'True object number: {object_num}. ' + \
-    #                        'Only give the revised tags_chinese: '
-    #         }
-    #     ]
-    #     response = litellm.completion(model=model, messages=prompt, temperature=0.6, max_tokens=max_tokens)
-    #     reply = response['choices'][0]['message']['content']
-    #     # sometimes return with "tags_chinese: xxx, xxx, xxx"
-    #     tags_chinese = reply.split(':')[-1].strip()
-    # return tags_chinese
-
-
 def load_model(model_config_path, model_checkpoint_path, device):
     args = SLConfig.fromfile(model_config_path)
     args.device = device
@@ -115,8 +89,11 @@ def get_grounding_output(model, image, caption, box_threshold, text_threshold,de
     pred_phrases = []
     scores = []
     final_boxes = []
-    for logit, box in zip(logits_filt, boxes_filt):        
-        pred_phrase = get_phrases_from_posmap(logit > text_threshold, tokenized, tokenlizer)
+    for logit, box in zip(logits_filt, boxes_filt):
+        if(logit.max() < text_threshold):
+            continue
+        # pred_phrase = get_phrases_from_posmap(logit > text_threshold, tokenized, tokenlizer)
+        pred_phrase = get_phrases_from_posmap(logit == logit.max(), tokenized, tokenlizer)
         if(pred_phrase.strip() == ""):
             continue
         pred_phrases.append(pred_phrase + f"({str(logit.max().item())[:4]})")
@@ -124,6 +101,7 @@ def get_grounding_output(model, image, caption, box_threshold, text_threshold,de
         final_boxes.append(box)
     boxes_filt = torch.stack(final_boxes)
 
+    # pdb.set_trace()
     return boxes_filt, torch.Tensor(scores), pred_phrases
 
 def get_single_grounding_output(model, image, caption, box_threshold, text_threshold, device="cpu"):
@@ -180,7 +158,7 @@ def show_box(box, ax, label):
     ax.text(x0, y0, label)
 
 
-def save_mask_data(output_dir, tags_chinese, mask_list, box_list, label_list):
+def save_mask_data(output_dir, mask_list, box_list, label_list):
     value = 0  # 0 for background
 
     mask_img = torch.zeros(mask_list.shape[-2:])
@@ -192,7 +170,6 @@ def save_mask_data(output_dir, tags_chinese, mask_list, box_list, label_list):
     plt.savefig(os.path.join(output_dir, 'mask.jpg'), bbox_inches="tight", dpi=300, pad_inches=0.0)
 
     json_data = {
-        'tags_chinese': tags_chinese,
         'mask':[{
             'value': value,
             'label': 'background'
@@ -224,6 +201,175 @@ ram_model.eval()
 
 sam_checkpoint = "sam_vit_h_4b8939.pth"
 predictor = SamPredictor(build_sam(checkpoint=sam_checkpoint).to(device))
+
+def get_labels(image_path):
+    image_pil, image = load_image(image_path)
+    # initialize Recognize Anything Model
+    normalize = TS.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
+    transform = TS.Compose([
+                    TS.Resize((384, 384)),
+                    TS.ToTensor(), normalize
+                ])
+    # threshold for tagging
+    # we reduce the threshold to obtain more tags
+    
+    raw_image = image_pil.resize(
+                    (384, 384))
+    raw_image  = transform(raw_image).unsqueeze(0).to(device)
+
+    res = inference_ram(raw_image , ram_model)
+
+    # Currently ", " is better for detecting single tags
+    # while ". " is a little worse in some case
+    tags_list = res[0].split("|")
+    print(tags_list)
+    tags = []
+    for tag in tags_list:
+        if not ("city" in tag or "scale" in tag or "model" in tag or "urban" in tag or "miniature" in tag or "sky" in tag or "screenshot" in tag):
+            tags.append(tag.strip())
+    # tags = ", ".join(tags)
+
+    print("Image Tags: ", tags)
+    
+    return tags
+
+def infer_no_ram(output_dir, image_path, img_name, tags, box_threshold=0.05, text_threshold=0.05, iou_threshold=0.25):
+    tags = ", ".join(tags)
+    
+    # cfg
+    config_file = "GroundingDINO_SwinT_OGC.py"  # change the path of the model config file
+    
+    grounded_checkpoint = "groundingdino_swint_ogc.pth"  # change the path of the model
+    
+    sam_hq_checkpoint = None
+    use_sam_hq = False
+    split = ","  # split for test prompt
+    openai_key = None
+    openai_proxy = None
+    
+    
+    # ChatGPT or nltk is required when using tags_chineses
+    # openai.api_key = openai_key
+    # if openai_proxy:
+        # openai.proxy = {"http": openai_proxy, "https": openai_proxy}
+
+    # load image
+    image_pil, image = load_image(image_path)
+    # load model
+    model = load_model(config_file, grounded_checkpoint, device=device)
+
+    # # initialize Recognize Anything Model
+    # normalize = TS.Normalize(mean=[0.485, 0.456, 0.406],
+    #                                  std=[0.229, 0.224, 0.225])
+    # transform = TS.Compose([
+    #                 TS.Resize((384, 384)),
+    #                 TS.ToTensor(), normalize
+    #             ])
+    
+
+    # # threshold for tagging
+    # # we reduce the threshold to obtain more tags
+    
+    # raw_image = image_pil.resize(
+    #                 (384, 384))
+    # raw_image  = transform(raw_image).unsqueeze(0).to(device)
+
+    # res = inference_ram(raw_image , ram_model)
+
+    # Currently ", " is better for detecting single tags
+    # while ". " is a little worse in some case
+    # tags_list = res[0].split("|")
+    # print(tags_list)
+    # tags = []
+    # for tag in tags_list:
+    #     if not ("city" in tag or "scale" in tag or "model" in tag or "urban" in tag):
+    #         tags.append(tag.strip())
+    # tags = ", ".join(tags)
+    # tags_chinese=res[1].replace(' |', ',')
+
+    # print("Image Tags: ", tags)
+    # print("图像标签: ", res[1])
+
+    # run grounding dino model
+    boxes_filt, scores, pred_phrases = get_grounding_output(
+        model, image, tags, box_threshold, text_threshold, device=device
+    )
+
+    # # initialize SAM
+    # if use_sam_hq:
+    #     print("Initialize SAM-HQ Predictor")
+    #     predictor = SamPredictor(build_sam_hq(checkpoint=sam_hq_checkpoint).to(device))
+    # else:
+        
+    image = cv2.imread(image_path)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    predictor.set_image(image)
+
+    size = image_pil.size
+    H, W = size[1], size[0]
+    for i in range(boxes_filt.size(0)):
+        boxes_filt[i] = boxes_filt[i] * torch.Tensor([W, H, W, H])
+        boxes_filt[i][:2] -= boxes_filt[i][2:] / 2
+        boxes_filt[i][2:] += boxes_filt[i][:2]
+
+    boxes_filt = boxes_filt.cpu()
+    # use NMS to handle overlapped boxes
+    print(f"Before NMS: {boxes_filt.shape[0]} boxes")
+    nms_idx = torchvision.ops.nms(boxes_filt, scores, iou_threshold).numpy().tolist()
+    boxes_filt = boxes_filt[nms_idx]
+    
+    areas = np.abs(boxes_filt[:, 2] - boxes_filt[:, 0]) * np.abs(boxes_filt[:, 3] - boxes_filt[:, 1])
+    mask = areas <= 0.4 * (1024)**2
+    print("Boxes shape before", boxes_filt.shape)
+    boxes_filt = boxes_filt[mask]
+    print("Boxes shape after", boxes_filt.shape)
+    
+    pred_phrases = [pred_phrases[idx] for idx in nms_idx]
+    print(f"After NMS: {boxes_filt.shape[0]} boxes")
+    # tags_chinese = check_tags_chinese(tags_chinese, pred_phrases)
+    # print(f"Revise tags_chinese with number: {tags_chinese}")
+    
+    print("DINO phrases:", pred_phrases)
+
+    transformed_boxes = predictor.transform.apply_boxes_torch(boxes_filt, image.shape[:2]).to(device)
+
+    masks, _, _ = predictor.predict_torch(
+        point_coords = None,
+        point_labels = None,
+        boxes = transformed_boxes.to(device),
+        multimask_output = False,
+    )
+    
+    # # draw output image
+    plt.figure(figsize=(10, 10))
+    plt.imshow(image)
+    
+    plt.gca().set_facecolor("white")  
+    plt.gcf().patch.set_facecolor("white")
+    
+    print("Masks Shape", masks.squeeze().shape)
+    # masks = masks.detach().cpu().numpy()
+    np.save(f"{output_dir}/masks_{img_name}.npy", masks.detach().cpu().numpy().squeeze())
+    
+    for mask in masks:
+        show_mask(mask.cpu().numpy(), plt.gca(), random_color=True)
+    for box, label in zip(boxes_filt, pred_phrases):
+        show_box(box.numpy(), plt.gca(), label)
+
+    os.makedirs(f"{output_dir}/{img_name}", exist_ok=True)
+
+    plt.title('RAM-tags: ' + tags + '\n')
+    plt.axis('off')
+    plt.savefig(
+        f"{output_dir}/{img_name}/output.jpg", 
+        bbox_inches="tight", dpi=300, pad_inches=0.0, facecolor="white"
+    )
+
+    save_mask_data(f"{output_dir}/{img_name}", masks, boxes_filt, pred_phrases)
+    
+    # pdb.set_trace()
+
 
 def infer(output_dir, image_path, img_name, box_threshold=0.05, text_threshold=0.05, iou_threshold=0.25):
 
@@ -276,7 +422,6 @@ def infer(output_dir, image_path, img_name, box_threshold=0.05, text_threshold=0
         if not ("city" in tag or "scale" in tag or "model" in tag or "urban" in tag):
             tags.append(tag.strip())
     tags = ", ".join(tags)
-    tags_chinese=res[1].replace(' |', ',')
 
     print("Image Tags: ", tags)
     print("图像标签: ", res[1])
@@ -317,8 +462,8 @@ def infer(output_dir, image_path, img_name, box_threshold=0.05, text_threshold=0
     
     pred_phrases = [pred_phrases[idx] for idx in nms_idx]
     print(f"After NMS: {boxes_filt.shape[0]} boxes")
-    # tags_chinese = check_tags_chinese(tags_chinese, pred_phrases)
-    # print(f"Revise tags_chinese with number: {tags_chinese}")
+    
+    print("DINO phrases:", pred_phrases)
 
     transformed_boxes = predictor.transform.apply_boxes_torch(boxes_filt, image.shape[:2]).to(device)
 
@@ -354,6 +499,6 @@ def infer(output_dir, image_path, img_name, box_threshold=0.05, text_threshold=0
         bbox_inches="tight", dpi=300, pad_inches=0.0, facecolor="white"
     )
 
-    save_mask_data(f"{output_dir}/{img_name}", tags_chinese, masks, boxes_filt, pred_phrases)
+    save_mask_data(f"{output_dir}/{img_name}", masks, boxes_filt, pred_phrases)
     
     # pdb.set_trace()
