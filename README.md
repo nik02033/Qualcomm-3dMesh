@@ -1,7 +1,7 @@
 # Qualcomm-3dMesh
 Download Environment
 ```bash
-wget -O sam2-env.tar https://arizonastateu-my.sharepoint.com/personal/nkanodi1_sundevils_asu_edu/_layouts/15/download.aspx?UniqueId=5b13d3f4-b9ef-4927-b72c-3f616575752d
+curl -L -J "https://arizonastateu-my.sharepoint.com/personal/nkanodi1_sundevils_asu_edu/_layouts/15/download.aspx?share=EfTTE1vvuSdJtyw_YWV1dS0BYCRArSoeElbHKCiqfiHY8A" -o sam2-env.tar
 ```
 
 
