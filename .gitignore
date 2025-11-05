@@ -1,1 +1,8 @@
 .DS_Store
+# vendor dirs build junk
+pytorch3d/_C*.so
+pytorch3d/build/
+pytorch3d/.cache/
+recognize-anything/.cache/
+__pycache__/
+*.pyc
