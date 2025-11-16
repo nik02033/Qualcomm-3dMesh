@@ -1,0 +1,33 @@
+{
+  "_comment": "Map RAM++ labels to SUM-Parts FACE labels only (0-12)",
+  "_note": "Texture labels (13-20) are remapped to closest face label equivalents",
+
+  "mappings": {
+    "background": "unclassified",
+    "barge": "boat",
+    "boat": "boat",
+    "bridge": "terrain",
+    "building": "facade_surface",
+    "car": "car",
+    "cargo": "terrain",
+    "dock": "terrain",
+    "ferry": "boat",
+    "lighthouse": "facade_surface",
+    "lot": "terrain",
+    "park": "terrain",
+    "power": "roof_installation",
+    "river": "water",
+    "scene": "unclassified",
+    "sea": "water",
+    "ship": "boat",
+    "station": "facade_surface",
+    "street": "terrain",
+    "tower": "facade_surface",
+    "train": "car",
+    "tree": "high_vegetation",
+    "umbrella": "unclassified",
+    "vessel": "boat",
+    "water": "water",
+    "parking": "terrain"
+  }
+}
