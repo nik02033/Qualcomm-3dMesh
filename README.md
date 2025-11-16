@@ -4,7 +4,6 @@ Download Environment
 curl -L -J "https://arizonastateu-my.sharepoint.com/personal/nkanodi1_sundevils_asu_edu/_layouts/15/download.aspx?share=EfTTE1vvuSdJtyw_YWV1dS0BYCRArSoeElbHKCiqfiHY8A" -o sam2-env.tar
 ```
 
-
 Download the `groundingdino_swint_ogc.pth` file into the `GroundingDINO/weights` directory with:
 
 ```bash
@@ -43,7 +42,19 @@ python main_fuse_classcolor_pytorch3d.py   --obj converted/Tile_+1990_+2691_L2.o
 For Open3d backprojection:
 ```bash
 python main_fuse_classcolor.py   --obj converted/Tile_+1990_+2691_L2.obj   --renders ./renders   --masks_dir ./dino_dets/masks_labeled   --out_labels face_class_strings.npy  --out_colored_obj colored_faces.obj
+```
 
+Evaluation
+Run the SUM-Parts evaluation on predicted mesh labels:
+``` bash
+cd evaluation
+
+python evaluate.py \
+  --gt_ply sum_parts/mesh/validate/Tile_+1990_+2691_L2.ply \
+  --pred_npy ../face_class_strings.npy \
+  --label_map label_mapping.json \
+  --masks_dir ../dino_dets/masks_labeled \
+  --output_json results.json
 ```
 
 
